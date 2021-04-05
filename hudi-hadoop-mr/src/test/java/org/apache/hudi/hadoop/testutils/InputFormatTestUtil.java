@@ -130,18 +130,30 @@ public class InputFormatTestUtil {
     jobConf.set(validateTimestampName, instantTime);
   }
 
+  public static void setupSnapshotPointInTimeQueryMode(JobConf jobConf, String maxInstantTime) {
+    setUpScanMode(jobConf, HoodieHiveUtils.POINT_IN_TIME_SCAN_MODE);
+    String validateTimestampName =
+            String.format(HoodieHiveUtils.HOODIE_POINT_IN_TIME_COMMIT_PATTERN, HoodieTestUtils.RAW_TRIPS_TEST_NAME);
+    jobConf.set(validateTimestampName, maxInstantTime);
+  }
+
   public static void setupSnapshotScanMode(JobConf jobConf) {
     setupSnapshotScanMode(jobConf, false);
   }
   
   private static void setupSnapshotScanMode(JobConf jobConf, boolean includePending) {
-    String modePropertyName =
-        String.format(HoodieHiveUtils.HOODIE_CONSUME_MODE_PATTERN, HoodieTestUtils.RAW_TRIPS_TEST_NAME);
-    jobConf.set(modePropertyName, HoodieHiveUtils.SNAPSHOT_SCAN_MODE);
+    setUpScanMode(jobConf, HoodieHiveUtils.SNAPSHOT_SCAN_MODE);
     String includePendingCommitsName =
         String.format(HoodieHiveUtils.HOODIE_CONSUME_PENDING_COMMITS, HoodieTestUtils.RAW_TRIPS_TEST_NAME);
     jobConf.setBoolean(includePendingCommitsName, includePending);
   }
+
+  private static void setUpScanMode(JobConf jobConf, String scanMode) {
+    String modePropertyName =
+        String.format(HoodieHiveUtils.HOODIE_CONSUME_MODE_PATTERN, HoodieTestUtils.RAW_TRIPS_TEST_NAME);
+    jobConf.set(modePropertyName, scanMode);
+  }
+
 
   public static File prepareParquetTable(java.nio.file.Path basePath, Schema schema, int numberOfFiles,
       int numberOfRecords, String commitNumber) throws IOException {

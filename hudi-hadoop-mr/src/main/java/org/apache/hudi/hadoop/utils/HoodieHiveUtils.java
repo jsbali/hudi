@@ -24,6 +24,7 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hudi.common.table.HoodieTableMetaClient;
 import org.apache.hudi.common.table.timeline.HoodieTimeline;
 import org.apache.hudi.common.util.CollectionUtils;
+import org.apache.hudi.common.util.Option;
 import org.apache.hudi.exception.HoodieIOException;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -68,6 +69,8 @@ public class HoodieHiveUtils {
   public static final String HOODIE_STOP_AT_COMPACTION_PATTERN = "hoodie.%s.ro.stop.at.compaction";
   public static final String INCREMENTAL_SCAN_MODE = "INCREMENTAL";
   public static final String SNAPSHOT_SCAN_MODE = "SNAPSHOT";
+  public static final String POINT_IN_TIME_SCAN_MODE = "POINT_IN_TIME";
+  public static final String HOODIE_POINT_IN_TIME_COMMIT_PATTERN = "hoodie.%s.consume.point.in.time";
   public static final String DEFAULT_SCAN_MODE = SNAPSHOT_SCAN_MODE;
   public static final int DEFAULT_MAX_COMMITS = 1;
   public static final int MAX_COMMIT_ALL = -1;
@@ -136,5 +139,17 @@ public class HoodieHiveUtils {
 
     // by default return all completed commits.
     return metaClient.getActiveTimeline().getCommitsTimeline().filterCompletedInstants();
+  }
+
+  public static boolean isPointInTimeQuery(JobConf job, String tableName) {
+    String scanMode = job.get(String.format(HoodieHiveUtils.HOODIE_CONSUME_MODE_PATTERN, tableName));
+    return scanMode != null && scanMode.equalsIgnoreCase(HoodieHiveUtils.POINT_IN_TIME_SCAN_MODE);
+  }
+
+  public static Option<String> getPointInTimeQueryMaxCommitTime(JobConf job, String tableName) {
+    if (isPointInTimeQuery(job, tableName)) {
+      return Option.of(job.get(String.format(HoodieHiveUtils.HOODIE_POINT_IN_TIME_COMMIT_PATTERN, tableName)));
+    }
+    return Option.empty();
   }
 }
