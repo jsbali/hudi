@@ -426,7 +426,6 @@ public class HoodieInputFormatUtils {
                                                                  List<Path> snapshotPaths) throws IOException {
     HoodieLocalEngineContext engineContext = new HoodieLocalEngineContext(job);
     List<FileStatus> returns = new ArrayList<>();
-
     Map<HoodieTableMetaClient, List<Path>> groupedPaths = HoodieInputFormatUtils
         .groupSnapshotPathsByMetaClient(tableMetaClientMap.values(), snapshotPaths);
     Map<HoodieTableMetaClient, HoodieTableFileSystemView> fsViewCache = new HashMap<>();
@@ -438,14 +437,26 @@ public class HoodieInputFormatUtils {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Hoodie Metadata initialized with completed commit instant as :" + metaClient);
         }
-
         HoodieTimeline timeline = HoodieHiveUtils.getTableTimeline(metaClient.getTableConfig().getTableName(), job, metaClient);
         HoodieTableFileSystemView fsView = fsViewCache.computeIfAbsent(metaClient, tableMetaClient ->
             FileSystemViewManager.createInMemoryFileSystemViewWithTimeline(engineContext, tableMetaClient, buildMetadataConfig(job), timeline));
         List<HoodieBaseFile> filteredBaseFiles = new ArrayList<>();
+
+        String tableName = metaClient.getTableConfig().getTableName();
+        boolean isPointInTimeQuery = HoodieHiveUtils.isPointInTimeQuery(job, tableName);
+
         for (Path p : entry.getValue()) {
           String relativePartitionPath = FSUtils.getRelativePartitionPath(new Path(metaClient.getBasePath()), p);
-          List<HoodieBaseFile> matched = fsView.getLatestBaseFiles(relativePartitionPath).collect(Collectors.toList());
+          List<HoodieBaseFile> matched = new ArrayList<>();
+          if (isPointInTimeQuery) {
+            Option<String> maxCommitInstant = HoodieHiveUtils.getPointInTimeQueryMaxCommitTime(job, tableName);
+            if (maxCommitInstant.isPresent()) {
+              matched = fsView.getLatestBaseFilesBeforeOrOn(relativePartitionPath, maxCommitInstant.get()).collect(Collectors.toList());
+            }
+          }
+          else {
+            matched = fsView.getLatestBaseFiles(relativePartitionPath).collect(Collectors.toList());
+          }
           filteredBaseFiles.addAll(matched);
         }
 
